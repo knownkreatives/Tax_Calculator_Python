@@ -1,5 +1,3 @@
-from calendar import c
-
 import rich.console as console
 import math
 
@@ -22,23 +20,10 @@ tax_bands_usa_2627 = [
 tax_rates_usa_2627 = [
     10, 12, 22, 24, 32, 35, 37
 ]
-printer = console.Console(color_system="auto", width=80)
+my_console = console.Console(color_system="auto", width=80)
 
 def _calculate_general_tax(income, percentage):
     return math.ceil(income * percentage / 100)
-
-def GeneralTaxCalculator():
-    printer.print("Enter your income (salary): ")
-    income = float(input())
-    print()
-
-    printer.print("Enter the tax percentage: ")
-    percentage = float(input())
-    print()
-
-    tax = _calculate_general_tax(income, percentage)
-    printer.print(f"The general tax on an income of {income} at a rate of {percentage}% is: {tax}")
-    print()
 
 def _calculate_taxable_income(income, high, low):
     taxable = min(income, high) - low
@@ -53,120 +38,136 @@ def _calculate_income_tax(income, percentage, high, low):
     
     return _calculate_general_tax(taxable, percentage)
 
-
-def _select_tax_bracket(bands, rates, income, auto=False):
+def tax_bracket_selector(bands, rates, income, auto=False):
     if auto:
         for i in range(len(bands)):
             if (bands[i - 1] < income <= bands[i]) if i > 0 else income <= bands[i]:
                 return i
         return len(bands) - 1
     
-    printer.print("Select the tax bracket:", style="bold green")
+    my_console.print("Select the tax bracket:", style="bold green")
     for i in range(len(bands)):
         suggested = bands[i - 1] < income <= bands[i] if i > 0 else income <= bands[i]
         indicator = " *" if suggested else ""
-        printer.print(f"{i + 1}. Up to {bands[i]} at {rates[i]}% {indicator}")
+        my_console.print(f"{i + 1}. Up to {bands[i]} at {rates[i]}% {indicator}")
     
-    selection = int(input()) - 1
+    my_console.print("Selection: ")
+    selection = int(my_console.input()) - 1
     return selection
 
-def _select_system():
-    printer.print("Select the tax system:", style="bold green")
-    printer.print("1. England")
-    printer.print("2. Scotland")
-    printer.print("3. USA")
-    selection = int(input())
-    print()
+def select_tax_system():
+    while True:
+        my_console.print("Select the tax system:", style="bold green")
+        my_console.print("1. England")
+        my_console.print("2. Scotland")
+        my_console.print("3. USA")
+        my_console.print("Selection: ")
+        selection = int(my_console.input())
 
-    if selection == 1:
-        return tax_bands_eng_2627, tax_rates_eng_2627
-    elif selection == 2:
-        return tax_bands_sct_2627, tax_rates_sct_2627
-    elif selection == 3:
-        return tax_bands_usa_2627, tax_rates_usa_2627
-    else:
-        printer.print("Invalid selection.", style="bold red")
-        return None, None
+        if selection == 1:
+            return tax_bands_eng_2627, tax_rates_eng_2627
+        elif selection == 2:
+            return tax_bands_sct_2627, tax_rates_sct_2627
+        elif selection == 3:
+            return tax_bands_usa_2627, tax_rates_usa_2627
+        else:
+            my_console.print("Invalid selection.", style="bold red")
+
+        my_console.line()
     
 def SingleTaxBracketCalculator():
-    bands, rates = _select_system()
+    bands, rates = select_tax_system()
 
-    printer.print("Enter your income (salary):")
-    income = float(input())
-    print()
+    my_console.print("Enter your income (salary):")
+    income = float(my_console.input())
+    my_console.line()
 
-    bracket_index = _select_tax_bracket(bands, rates, income, auto=False)
+    bracket_index = tax_bracket_selector(bands, rates, income, auto=False)
     
     tax = _calculate_income_tax(income, rates[bracket_index], bands[bracket_index], 0)
     
-    printer.print(f"The tax on an income of {income} in the selected bracket is: {tax}")
-    print()
+    my_console.print(f"The tax on an income of {income} in the selected bracket is: {tax}")
+    my_console.line()
 
-def _full_tax_calculator(income, bands, rates):
+def FullTaxBracketCalculator():
+    bands, rates = select_tax_system()
+    
+    my_console.print("Enter your income (salary):")
+    income = float(my_console.input())
+    my_console.line()
+
+    remainder = income
+    total_tax = 0
+
+    my_console.print(f"Tax breakdown for an income of {income}:", style="bold green")
+    my_console.print(f"{'Bracket':<15}{'Taxable':<15}{'Rate':<15}{'Result':<15}", style="bold white")
+    while remainder > 0:
+        bracket_index = tax_bracket_selector(bands, rates, remainder, auto=True)
+        low = 0 if bracket_index == 0 else bands[bracket_index - 1]
+
+        taxed = _calculate_income_tax(remainder, rates[bracket_index], bands[bracket_index], low)
+        taxable = _calculate_taxable_income(remainder, bands[bracket_index], low)
+        
+        my_console.print(f"{bracket_index + 1:<15}{taxable:<15.2f}{rates[bracket_index]:<15.2f}{taxed:<15.2f}")
+
+        remainder -= taxable
+        total_tax += taxed
+
+    my_console.line()
+    my_console.print(f"{'Total Tax':<45}{total_tax:<15.2f}")
+    my_console.line()
+
+def TakeHomePayBreakdown():
+    bands, rates = select_tax_system()
+
+    my_console.print("Enter your income (salary):")
+    income = float(my_console.input())
+    my_console.line()
+
     remainder = income
     total_tax = 0
 
     while remainder > 0:
-        bracket_index = _select_tax_bracket(bands, rates, remainder, auto=True)
+        bracket_index = tax_bracket_selector(bands, rates, remainder, auto=True)
         low = 0 if bracket_index == 0 else bands[bracket_index - 1]
 
         taxed = _calculate_income_tax(remainder, rates[bracket_index], bands[bracket_index], low)
-        
+
         remainder -= _calculate_taxable_income(remainder, bands[bracket_index], low)
         total_tax += taxed
 
-    return total_tax
-
-def FullTaxBracketCalculator():
-    bands, rates = _select_system()
-    
-    printer.print("Enter your income (salary):")
-    income = float(input())
-    print()
-
-    total_tax = _full_tax_calculator(income, bands, rates)
-
-    printer.print(f"The total tax on an income of {income} is: {total_tax}")
-    print()
-
-def TakeHomePayBreakdown():
-    bands, rates = _select_system()
-
-    printer.print("Enter your income (salary):")
-    income = float(input())
-    print()
-
-    total_tax = _full_tax_calculator(income, bands, rates)
-
     take_home_pay = income - total_tax
-    printer.print(f"Take-home pay breakdown for an income of {income}:", style="bold green")
-    printer.print(f"{' ':<15}{'Yearly':<15}{'Monthly':<15}{'Weekly':<15}{'Daily':<15}")
-    printer.print(f"{'Gross Pay':<15}{income:<15.2f}{income / 12:<15.2f}{income / 52:<15.2f}{income / 365:<15.2f}")
-    printer.print(f"{'Total Tax':<15}{total_tax:<15.2f}{total_tax / 12:<15.2f}{total_tax / 52:<15.2f}{total_tax / 365:<15.2f}")
-    printer.print(f"{'Net Pay':<15}{take_home_pay:<15.2f}{take_home_pay / 12:<15.2f}{take_home_pay / 52:<15.2f}{take_home_pay / 365:<15.2f}")
-    print()
-
+    my_console.print(f"Take-home pay breakdown for an income of {income:.2f}:", style="bold green")
+    my_console.print(f"{' ':<15}{'Yearly':<15}{'Monthly':<15}{'Weekly':<15}{'Daily':<15}")
+    my_console.print(f"{'Gross Pay':<15}{income:<15.2f}{income / 12:<15.2f}{income / 52:<15.2f}{income / 365:<15.2f}")
+    my_console.print(f"{'Total Tax':<15}{total_tax:<15.2f}{total_tax / 12:<15.2f}{total_tax / 52:<15.2f}{total_tax / 365:<15.2f}")
+    my_console.print(f"{'Net Pay':<15}{take_home_pay:<15.2f}{take_home_pay / 12:<15.2f}{take_home_pay / 52:<15.2f}{take_home_pay / 365:<15.2f}")
+    my_console.line()
 
 if __name__ == "__main__":
-    printer.print("Welcome to the Tax Calculator!", style="bold blue")
-    print()
-    printer.print("Please select the type of tax you want to calculate:")
-    printer.print("1. General Tax")
-    printer.print("2. Single Tax Bracket")
-    printer.print("3. Full Tax Bracket")
-    printer.print("4. Take-Home Pay Breakdown")
-    selection = int(input())
-    print()
-
-    if selection == 1:
-        GeneralTaxCalculator()
-    elif selection == 2:
-        SingleTaxBracketCalculator()
-    elif selection == 3:
-        FullTaxBracketCalculator()
-    elif selection == 4:
-        TakeHomePayBreakdown()
-    else:
-        printer.print("Invalid selection.", style="bold red")
+    my_console.print("Welcome to the Tax Calculator!", style="bold blue")
     
-    printer.print("Thank you for using the Tax Calculator!")
+    while True:
+        my_console.print("Please select the type of tax you want to calculate (Input '0' to exit):")
+        my_console.print("1. Tax Bracket Calculator")
+        my_console.print("2. Tax Bracket Breakdown")
+        my_console.print("3. Take-Home Pay Breakdown")
+        my_console.print("Selection: ")
+        selection = int(my_console.input())
+
+        if selection == 0:
+            my_console.print("Exiting...", style="bold red")
+            break
+        else:
+            my_console.line()
+
+        if selection == 1:
+            SingleTaxBracketCalculator()
+        elif selection == 2:
+            FullTaxBracketCalculator()
+        elif selection == 3:
+            TakeHomePayBreakdown()
+        else:
+            my_console.print("Invalid selection.", style="bold red")
+    
+    my_console.print("Thank you for using the Tax Calculator!")
